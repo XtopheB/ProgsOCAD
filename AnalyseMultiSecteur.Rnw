@@ -1,0 +1,164 @@
+% 09/01/2013:Fichier Sweave qui crie des rapports par secteur automatiques
+%           : Inspiri du Programme DeaReport.rnw
+%  Changement de notation des fichiers   dataref  -> dataref
+%                                        dataref2 -> dataref.all
+%                                        dataout  -> dataref.out
+
+
+\documentclass[a4paper]{article}
+
+\title{Moulinette Infernale !}
+\author{Christophe }
+
+\usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
+\usepackage{rotating}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+%\SweaveOpts{concordance=TRUE}
+
+% Quelques Options de dipart pour mettre les graphiques dans un sous ripertoire
+% et leur donner le nom Graph-001
+
+\SweaveOpts{prefix.string=Graphics/Sec151A_Graph}  
+
+% Et pour laisser l affichage des commentaires du programmes
+\SweaveOpts{keep.source=TRUE}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% <<results=hide>>=               % <--- si l'on souhaite ne pas afficher les risultats...
+% <<echo=false,results=hide>>=    % <--- si l'on ne souhaite ni code, ni risultats... 
+
+
+<<echo=FALSE, results=hide>>=
+
+## D abord on efface tout silencieusement...
+
+rm(list=ls())
+
+## Second change the working directory
+
+#setwd("D:/progs/EPI/Ocad")   
+setwd("C:/Chris/zprogs/EPI/Ocad/")   
+
+library(Benchmarking)
+library(foreign)
+library(np)
+library(ineq)
+
+#--------------------------------------------------
+## Partie I: DATA
+
+## Chargement des fonctions de baduBenko
+#source("FunctionsBadubenko.R")
+
+# Se poser la quetion si on enlhve les Knuls ou pas ?? Pour l'insant on ne touche ` rien 
+
+dataall <- read.dta("Data/D151CStat.dta")   # TOUTES les annies 
+dim(dataall)
+dataall.out <-subset(dataall,atyp2==1)   # <- QUE les outliers
+dim(dataall.out)
+dataall.MP <-subset(dataall,MP==1) # QUE Midi-Pyrinees
+dim(dataall.MP)
+
+#  Year 20006 
+
+dataref.all <- subset(dataall,an1x==2006 )  # <- QUE 2006, avec les atypiques
+nref2=nrow(dataref.all)
+
+dataref <- subset(dataall,an1x==2006 & atyp2==0)  # <- QUE  2006, sans les atypiques
+nref=nrow(dataref)
+
+dataref.out <- subset(dataall,an1x==2006 & atyp2==1)   # <- QUE 2006, QUE les atypiques
+Nout <- nrow(dataref.out)
+
+
+@
+
+% ------------Debut du papier -------------
+\bigskip 
+On a \textbf{\Sexpr{nrow(dataall)}} observations (toutes annies confondues). Pour 2006,  on a \textbf{\Sexpr{nrow(dataref.all)}} observations  dont \textbf{\Sexpr{nrow(dataref.out)}} firmes classies "atypiques" par une procidure basie sur un index des inputs $Xvol$ (1 dimension). 
+
+\section{Concentration du secteur \& indices }
+
+<<echo=FALSE, results=hide>>=
+dataref96.all <- subset(dataall,an1x==1996)
+
+foo.1996 <- ineq(dataref96.all$Y,type="Gini")
+foo.2006 <- ineq(dataref.all$Y,type="Gini")
+
+@
+
+L'indice de Gini vaut \textbf{\Sexpr{round(foo.1996, 3)}} en 1996 et \textbf{\Sexpr{round(foo.2006,3)}} en 2006. Les courbes de Lorentz d??crivent la concentration pour ces deux ann??es. 
+
+<<fig=TRUE,echo=false>>=
+
+Lorentz.1996 <- Lc(dataref96.all$YV)
+Lorentz.2006 <- Lc(dataref.all$YV)
+plot(Lorentz.1996,col="darkred", lty = 1, lwd=4)
+lines(Lorentz.2006, col="blue", lty = 2, lw=2)
+legend("topleft",legend=c("Prod. en Valeur 1996", "Prod. en valeur 2006"),lty=1:2,col=c("darkred", "blue"))
+
+@
+
+Les indices de concentration sont repr??snet??s pour diff??rentes ann??es. 
+<<fig=TRUE,echo=false>>=
+
+MyHHI <-function(x){
+  foo<-na.omit(x)
+  xx <- mean(x)
+  y<-conc(foo, type ="H" )*10000
+  return(y)
+}
+x <- dataref96.all$YV
+
+MyCR4 <- function(x){
+  foo <- na.omit(x)
+  xx <- sort(foo, decreasing=TRUE)
+  CR4 <- (sum(xx[1:4])/sum(xx))*100
+  return(CR4)
+}
+
+
+dataall.YV <-subset(dataall, select = c(ident,an1x,YV) )
+MatY <- reshape(dataall.YV,v.names="YV", idvar= "ident", timevar="an1x", direction="wide")
+
+MatHHI <- apply(MatY, FUN=MyHHI,  MARGIN=2)
+MatCR4 <- apply(MatY, FUN=MyCR4,  MARGIN=2)
+
+years <-seq(1996, 2006)
+
+plot(years, MatHHI[2:12], type="o" ,lty=1,  col="darkred" )
+axis(2, pretty(c(0, 1.1*max(MatHHI[2:12])),min.n=6, n=10), col='darkred')
+
+par(new=T) 
+plot(years, MatCR4[2:12], type="o" , lty=2,  col="blue" , axes=F)
+axis(4, xaxp=c(0,  10, 1.2*max(MatCR4[2:12])), col='blue')
+legend("topleft",legend=c("Herfindahl index", "CR4 index"),lty=1:2,col=c("darkred", "blue"))
+@
+
+
+
+<<echo=false,results=tex>>=
+library(reporttools)
+
+annee <-2006
+dataref.all$YsurK <- dataref.all$Y / dataref.all$K
+dataref.all$YsurL <- dataref.all$Y / dataref.all$L
+
+
+Mycap <- paste("Ann??e", annee,"test")
+Mystats <-  list("n", "mean", "min", "median",  "max", "na")
+Mylab <- "Monlabel"
+Myvars<- with(dataref.all, data.frame( "Y (valeur)" = dataref.all$YV,
+                                      "Y sur K" = dataref.all$YsurK,
+                                      "Y sur L" = dataref.all$YsurL, 
+                                      "Y sur EMV" = dataref.all$YsurEMV)                                                                                                                          
+                                      )
+tableContinuous(vars = Myvars, stats = Mystats, cap = Mycap, prec=2, lab = Mylab, longtable = FALSE)
+@
+
+
+\end{document}
