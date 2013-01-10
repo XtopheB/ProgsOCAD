@@ -1,0 +1,500 @@
+% Fichier Sweave qui crée des rapports par secteur automatiques
+% Ajout des indices de concentration
+% Ajout des estimation des M et alpha Frontieres (02/02/2012)
+% Ajout de l'estimation des frontières et de leurs dérivées. (14/03/2012)
+% ajout dun test VRS versus CRS (O. Badunenko. Summer of '07) (03/07/2012)
+
+\documentclass[a4paper]{article}
+
+\title{An "up-to-date" process on frontier estimation using R}
+\author{Christophe }
+
+\usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
+\usepackage{rotating}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+% Quelques Options de départ pour mettre les graphiques dans un sous répertoire
+% et leur donner le nom Graph-001
+
+\SweaveOpts{prefix.string=Graphics/GraphR}  
+
+% Et pour laisser l affichage des commentaires du programmes
+\SweaveOpts{keep.source=TRUE}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% <<results=hide>>=               % <--- si l'on souhaite ne pas afficher les résultats...
+% <<echo=false,results=hide>>=    % <--- si l'on ne souhaite ni code, ni résultats... 
+
+
+<<echo=FALSE, results=hide>>=
+## Novembre 2011-Aout 2012  
+
+## D abord on efface tout silencieusement...
+
+rm(list=ls())
+
+## Second change the working directory
+
+setwd("D:/progs/EPI/Frontiers/efficacite")   
+#setwd("C:/Chris/progs/EPI/Frontiers/efficacite")   
+
+library(Benchmarking)
+library(foreign)
+library(np)
+
+#--------------------------------------------------
+## Partie I: Calcul des scores pour toutes les années
+
+setwd("All")
+## Chargement des fonctions de baduBenko
+source("FunctionsBadubenko.R")
+
+# Se poser la quetion si on enlève les Knuls ou pas ?? Pour l'insant on ne touche à rien 
+dataall <- read.dta("Data/D151CStat.dta")  
+dim(dataall)
+dataall.out <-subset(dataall,atyp2==1)   # Changement 30/11/2011
+dim(dataall.out)
+dataall.MP <-subset(dataall,MP==1)
+
+dataref <- subset(dataall,an1x==2006 & atyp2==0)  # <- frontière  2006, pas les atypiques
+nref=nrow(dataref)
+dataref2 <- subset(dataall,an1x==2006 )  # <- frontière  2006, avec les atypiques
+nref2=nrow(dataref2)
+dataout <- subset(dataall,an1x==2006 & atyp2==1)   # <- que les atypiques
+Nout <- nrow(dataout)
+dataMP <- subset(dataall,an1x==2006 &MP==1)
+
+@
+
+% ------------Debut du papier -------------
+\bigskip 
+On a \textbf{\Sexpr{nrow(dataall)}} observations (toutes années confondues). Pour 2006,  on a 
+\textbf{\Sexpr{nrow(dataout)}} firmes classées "atypiques" par une procédure basée sur un index des inputs $Xvol$ (1 dimension). 
+
+\section{Concentration du secteur \& indices (from Stata)}
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{Graphics/CR151A.pdf}
+\end{center}
+\end{figure}
+
+
+%\section{Indices aggrégés}
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{Graphics/Moyennes151A.pdf}
+\end{center}
+\end{figure}
+
+\section{Data in 2D in 2006}
+
+
+<<fig=TRUE,echo=false>>=
+
+xref=matrix(c(dataref$Xvol),nrow=nref,ncol=1)
+yref=matrix(c(dataref$Y),nrow=nref,ncol=1)
+
+medX <-median(xref)
+p75X <-quantile(xref,probs=c(0.75))
+p90X <-quantile(xref,probs=c(0.90))
+medY <-median(yref)
+p75Y <-quantile(yref,probs=c(0.75))
+p90Y <-quantile(yref,probs=c(0.90))
+
+
+bornex <- round(max(xref), d=0)
+borney <- round(max(yref), d=0)
+## On zoome 
+
+bornex75 <- round(p75X/100, d=0)*100
+borney75 <- round(p75Y/100, d=0)*100
+bornex50 <- round(medX/100, d=0)*100
+borney50 <- round(medY/100, d=0)*100
+
+
+plot(dataref$Xvol, dataref$Y, col="black" ,xlab="Xvol", lwd=1, 
+    xlim=c(0,bornex),ylim=c(0,borney),
+    ylab="Y",  main=paste(" Data points in 2006"),
+    sub=paste(nrow(dataout)," outliers (red), echantillon complet de [ Xvol = ",bornex,",  Y =", borney, "]"))
+
+points(dataout$Xvol, dataout$Y, col="red" )
+rug(xref, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+legend("topleft",legend=c("Data", "Quantiles", "Outliers"),lty=2:4,col=c("black", "grey", "red"))
+
+
+@
+
+<<fig=TRUE,echo=false>>=
+
+plot(dataref$Xvol, dataref$Y, col="black" ,xlab="Xvol", lwd=1, 
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Y",  main=paste(" Data points in 2006 (Zoom à l'intérieur du P75) "),
+    sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+
+points(dataout$Xvol, dataout$Y, col="red" )
+rug(xref, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+legend("topleft",legend=c("Data", "Quantiles", "Outliers"),lty=2:4,col=c("black", "grey", "red"))
+
+@
+
+\subsection{DEA (CRS, VRS)  sur l'échantillon hors atypiques en 2006}
+
+<<fig=TRUE,echo=FALSE>>=
+
+dea.plot.frontier(xref, yref,RTS="vrs" , xlab="Xvol", lwd=1,   col="black",
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Y",  main=paste(" DEA frontiers in 2006 (echantillon complet) "),
+    sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+    
+dea.plot.frontier(xref, yref,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=1)
+dea.plot.frontier(xref, yref,RTS="fdh", lty="dotted",add= TRUE,col="green")
+
+points(dataout$Xvol, dataout$Y, col="red" )
+rug(xref, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+legend("topleft",legend=c("CRS", "VRS","FDH", "Outliers"),lty=2:4,col=c("black", "blue" ,"green", "red"))
+
+@
+
+
+
+
+\section{Detection des "Outliers atypiques à  la Simar JPA 2003 }
+
+On travaille ici avec le fichier complet (\Sexpr{nref2} obs.), en 3 dimensions pour l'année 2006.
+
+\subsection*{Choix de m et de $\alpha$}
+
+$\alpha$ est un paramètre de sensibilité qui détermine le niveau à partir duquel un point est "loin" de la m-frontière i.e. $\theta (x_i, y_i)$ est $\geq 1$ dans le cas input-oriented (resp. $\lambda (x_i, y_i) \leq 1$ dans le cas output-oriented). Typiquement, on déclarera un point "outlier" si il est à une distance input-oriented, $\theta (x_i, y_i)$  supérieure à 1+$\alpha$ (resp. $\lambda (x_i, y_i) \leq 1- \alpha$). Afin de déterminer cela, on calcule pour chaque point $(x_i, y_i)$ sa m-frontière efficacité (en leave-one-out) et la standard déviation. La règle de détection sera donc ajustée pour tenir compte de la variance de la m-frontière en ce point (calculée en bootstrappant) pour devenir  $\theta (x_i, y_i) - 1.645 \cdot \sigma(x_i, y_i) \geq 1+\alpha$. Les tables ci-dessous, indiquent le pourcentage de points qui sont "flagés" outliers pour les différentes valeurs de m et $\alpha$. Ces tables sont illustrées par les 2 figures ci-dessous.
+
+Les 2 fichiers ($rez_i$ et $rez_o$) avec m colonnes et $3 \cdot N$ lignes (soit 3 lignes par observation du fichier de données,  see Simar 2003, Table 1) reportent~:
+\begin{itemize}
+  \item dans $rez_i$, les résultats input-oriented (efficiency score, std, et $N_{input}$ = Nb of points with $Y \geq Y_i$ considéré) pour chaque point et pour différentes valeurs de  $m$.
+  \item dans $rez_o$   les résultats output-oriented.
+\end{itemize}
+
+Simar dit que l'on détecte les outliers en regardant quels points ont des m-efficacités fortes, et/ou peu de points avec un output $ \geq Y_i$ considéré ($N_{input}$,  3ième ligne de chaque observation.).\\
+
+
+<<fig = TRUE, echo = FALSE, results=verbatim>>=
+
+tauxalpha <- round(sqrt(nref2)/nref2 *100, digit = 1)
+tauxnous <- round((Nout/nref2)*100, digit = 1)
+
+yref2.3d = t(matrix(c(dataref2$Y),nrow = nref2,ncol = 1))
+xref2.3d = t(matrix(c(dataref2$KV,dataref2$LV,dataref2$EMV),nrow = nref2,ncol = 3))
+
+# folder with all stuff of project
+folder = "d:/progs/EPI/Frontiers/Efficacite/All/" # indicate your's
+
+# 
+# tuning parameter
+# Original values / m = c (10, 25, 50, 75, 100, 150);  alpha = c(0.2, 0.3, 0.4, 0.5);
+
+m = c (10, 25, 50, 75, 100, 150) 
+alpha = c(0.3, 0.4, 0.5, 0.6) 
+Nboot <- 399                       # <<- mettre le nombre de bootstraps..
+
+extreme.s03(x = xref2.3d, y = yref2.3d, B = Nboot)  
+
+@
+
+Les calculs effectués ici le sont avec  \textbf{\Sexpr{Nboot}} bootstraps.\\
+
+J'ai ajouté 2x2 tables en sortie : $out_i$ (resp. $out_o$)  donne les valeurs pour chaque point de $\theta (x_i, y_i) - 1.645 \cdot \sigma(x_i, y_i) $ (resp. $\lambda (x_i, y_i) + 1.645 \cdot \sigma(x_i, y_i) $) pour chaque valeur de m et pour un $\alpha$ fixé\footnote{à changer directement dans la fonction de Badubenko, ligne 223}  ainsi que $outpoint_i$ (et $outpoint_o$) qui reporte les mêmes résultats seulement si le niveau $1+\alpha$ (resp. $1- \alpha$) est dépassé. $\alpha$ est pour l'instant fixé à $0.5$ pour ces 2 tables !\\
+
+ A noter qu'un  taux acceptable d'outliers est en théorie de $\frac{\sqrt(n)}{n} $ selon Barnett and Lewis (1995, voir Simar). Ici, avec \Sexpr{nref2} observations,  cela vaut \Sexpr{tauxalpha} \% . A noter que nous avions détecté avec notre procédure seulement \Sexpr{Nout} ``outliers'' (soit un taux de \Sexpr{tauxnous} \%).   \\
+
+
+\subsection{Selection des outliers sur fichier avec "atypiques exclus" }
+
+On travaille ici avec le fichier sans les outilers détectés par notre méthode, en 3 dimensions, pour l'année 2006 ( \Sexpr{Nout} points supprimés par notre procédure (identifiants = \Sexpr{dataout$ident}). \\
+
+<<fig = TRUE, echo = FALSE, results=verbatim>>=
+
+
+x = t(xref)
+y = t(yref)
+
+extreme.s03(x = x, y = y, B = Nboot)   
+
+@
+
+
+\section{m-Frontiers sur l'échantillon complet en 2006}
+
+On travaille ici avec le fichier complet, avec  l'indice $Xvol$ (2-dimensions) pour 2006. On représente les frontières 
+input et output-oriented (avec FEAR). 
+
+
+<<fig = TRUE, echo = FALSE, results=hide>>=
+
+library(FEAR)
+
+xref2=matrix(c(dataref2$Xvol),nrow=nref,ncol=1)
+yref2=matrix(c(dataref2$Y),nrow=nref,ncol=1)
+
+
+# M-frontier 
+
+M.order<-100
+M.rep <-200
+# Scores output-oriented 
+score.o <-orderm(XOBS=t(xref2),YOBS=t(yref2), ORIENTATION=2, M=M.order, NREP=M.rep, XREF=NULL, YREF=NULL)
+y.o <-yref2/t(score.o)[,1]
+# Scores input-oriented 
+score.i <-orderm(XOBS=t(xref2),YOBS=t(yref2), ORIENTATION=1, M=M.order, NREP=M.rep, XREF=NULL, YREF=NULL)
+x.i <-xref2/t(score.i)[,1]
+
+plot(xref2,y.o, type="p", xlab="Xvol",  col="green", pch="*",
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Output",  main=paste(" M-frontier in 2006, M=",M.order,", Rep=",M.rep,""),
+        sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+
+
+points(x.i,yref2, type="p", xlab="Xvol",  col="blue", pch="*")
+
+points(xref2,yref2,  pch="+", col="grey" )
+points(dataout$Xvol, dataout$Y, col="red" )
+
+rug(xref2, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+
+legend("topleft",legend=c("input direction","output direction"),lty=2:4,col=c("blue","green"))
+
+
+#points(dataMP$Xvol, dataMP$Y, col="brown", pch="+" )  # Midi-Pyrénées !!
+
+@
+
+
+\section{$\alpha$-Frontiers sur l'échantillon complet en 2006}
+
+\subsection{Comparaison  "FEAR" - "frontiles"}
+
+<<fig=TRUE,echo=FALSE>>=
+
+## Alpha Frontier FEAR 
+alpha=0.985
+score.alpha <-cquan(XOBS=t(xref2),YOBS=t(yref2), ORIENTATION=2, alpha =alpha)
+
+y.alpha <-yref2/score.alpha    # points reconstitués sur la alpha-frontière output 
+
+plot(xref2,yref2,  pch="+", col="grey" ,
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Output", xlab="Xvol", main=paste(" Alpha-frontier in 2006 (FEAR vs Frontiles) , alpha=",alpha,""),
+     sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+
+#FEAA 
+points(xref2,y.alpha, pch="+",   col="green3")
+
+#Frontiles
+library(frontiles)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),type="input",alpha=alpha,col='blue',lty=2,add=TRUE)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),type="output",alpha=alpha,col='green',lty=1,add=TRUE)
+
+points(dataout$Xvol, dataout$Y, col="red" )
+
+legend("topleft",legend=c(" [ + ] Fear (output-oriented)"," [ _ ] Frontiles (output direction)"," [ -- ] Frontiles (input direction)", " [ o ] outliers "),lty=2:4,col=c("green3" ,"green", "blue", "red"))
+
+rug(xref2, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+@
+
+
+\subsection{Estimation nonparamétrique de ces $\alpha$-frontières }
+
+<<fig=FALSE,echo=FALSE,  results=hide>>=
+
+library(np)
+data.frontier <-data.frame(y.alpha , xref2)
+
+# data.frontier <-subset(data.frontier, xref2<=100000)
+data.frontier <-subset(data.frontier, xref2<=p75X)
+
+attach(data.frontier)
+bw <- npregbw(y.alpha~xref2, regtype="ll",bandwidth.compute=TRUE, data=data.frontier )
+
+@
+<<fig=TRUE,echo=FALSE, results=hide>>=
+npplot(bw,  main=paste(" NP estimation of alpha-frontier in 2006, alpha=",alpha,""))
+
+points(xref2,y.alpha, type="p", xlab="Xvol",  col="green")       
+points(xref2,yref2,  pch="+", col="grey")
+legend("topleft",legend=c("Points on the m-frontier","NP estimation", "Data points"),lty=2:4,col=c("green", "black", "grey"))
+
+rug(xref2, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+
+summary(bw)
+@
+
+<<fig=TRUE,echo=FALSE>>=
+
+plot(bw, gradient=TRUE, plot.errors.method="bootstrap", col="red", 
+     main=paste(" NP estimation of the derivative of the alpha-frontier in 2006,
+                alpha=",alpha,", zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+abline(h=1, col= "blue")
+
+rug(xref2, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(v = p90X, col = "grey", lty = "dotted", lwd=2) 
+
+@
+
+\section{Test CRS vs VRS (Simar \& Wilson, 2002) }
+<<echo=FALSE>>=
+## Paramètres pour les tests
+
+NbootTest <- 1000
+AlphaTest <- 0.05
+@
+
+Sur l'échantillon complet hors atypiques (\Sexpr{nref} observations). Le test est effectué pour $\alpha$ =\Sexpr{AlphaTest}  et \Sexpr{NbootTest} bootstraps :
+
+<<fig=TRUE,echo=false, results=verbatim>>=
+library(Benchmarking)
+
+Benchmarking::dea.plot.frontier(xref, yref,RTS="vrs" , xlab="Xvol", lwd=1, 
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Y",  main=paste(" DEA frontiers in 2006 (Echantillon complet", nref, "points)"),
+    sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+
+    
+Benchmarking::dea.plot.frontier(xref, yref,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=1)
+Benchmarking::dea.plot.frontier(xref, yref,RTS="fdh", lty="dotted",add= TRUE,col="green")
+
+points(dataout$Xvol, dataout$Y, col="red" )
+
+legend("topleft",legend=c("VRS","CRS", "FDH", "Outliers"),lty=2:4,col=c("black", "blue","green","red"))
+rug(xref2, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
+abline(h = medY, col = "grey", lty = "dotted", lwd=2)
+abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
+abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+
+detach(package:Benchmarking)
+library(FEAR)
+
+rts.test(x = xref, y = yref, alpha = AlphaTest, orient = 2, B = NbootTest)
+
+@
+
+Même test sur le même échantillon complet hors atypiques (\Sexpr{nref} observations) mais avec les 3 dimensions de X (K L et M):\\
+
+<<echo=false, results=verbatim>>=
+# test en 3D
+xref.3d = t(matrix(c(dataref$KV, dataref$EMV, dataref$LV),nrow = nref,ncol = 3))
+rts.test(x = xref.3d, y = yref, alpha = AlphaTest, orient = 2, B = NbootTest)
+@
+
+<<echo=false, results=hide>>=
+## TRIMMING des Obs....
+dataref.trim <- subset(dataall,an1x==2006 & atyp2==0 & Xvol < bornex75)
+ntrim=nrow(dataref.trim)
+yref.trim = matrix(dataref.trim$Y,nrow = ntrim,ncol = 1)
+xref.trim = matrix(dataref.trim$Xvol,nrow = ntrim,ncol = 1)
+@
+
+On restreint le "range" des observations en restant sous le quantile .75 ( Xvol $\leq$ \Sexpr{bornex75}), soit \Sexpr{ntrim} observations. On travaille ici avec l'indice $Xvol$ (2-dimensions) :
+
+<<fig=TRUE,echo=false, results=verbatim>>=
+library(Benchmarking)
+
+Benchmarking::dea.plot.frontier(xref.trim, yref.trim,RTS="vrs" , xlab="Xvol", lwd=1, 
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Y",  main=paste(" DEA frontiers in 2006 (Echantillon réduit", ntrim, "points)"),
+        sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+
+Benchmarking::dea.plot.frontier(xref.trim, yref.trim,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=1)
+Benchmarking::dea.plot.frontier(xref.trim, yref.trim,RTS="fdh", lty="dotted",add= TRUE,col="green")
+
+points(dataout$Xvol, dataout$Y, col="red" )
+
+legend("topleft",legend=c("VRS","CRS", "FDH", "Outliers"),lty=2:4,col=c("black", "blue","green","red"))
+rug(xref.trim, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted") 
+abline(h = medY, col = "grey", lty = "dotted")
+abline(v = p75X, col = "grey", lty = "dotted") 
+abline(h = p75Y, col = "grey", lty = "dotted")
+
+detach(package:Benchmarking)
+library(FEAR)
+
+rts.test(x = xref.trim, y = yref.trim, alpha = AlphaTest, orient = 2, B = NbootTest)
+
+@
+
+
+<<echo=false, results=hide>>=
+## TRIMMING des Obs....
+dataref.trim <- subset(dataall,an1x==2006 & atyp2==0 & Xvol < bornex50)
+ntrim=nrow(dataref.trim)
+yref.trim = matrix(dataref.trim$Y,nrow = ntrim,ncol = 1)
+xref.trim = matrix(dataref.trim$Xvol,nrow = ntrim,ncol = 1)
+@
+
+
+On restreint encore le  "range" des observations en dessous de la médiane (Xvol $\leq$ \Sexpr{bornex50}) , soit \Sexpr{ntrim} observations : : \\
+
+<<fig=TRUE,echo=false, results=verbatim>>=
+library(Benchmarking)
+
+Benchmarking::dea.plot.frontier(xref.trim, yref.trim,RTS="vrs" , xlab="Xvol", lwd=1, 
+    xlim=c(0,bornex50),ylim=c(0,borney50),
+    ylab="Y",  main=paste(" DEA frontiers in 2006 (Echantillon réduit", ntrim, "points)"),
+        sub=paste(nrow(dataout)," outliers (red), Zoom sur la zone [ Xvol < ",bornex50,",  Y <", borney50, "]"))
+
+Benchmarking::dea.plot.frontier(xref.trim, yref.trim,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=1)
+Benchmarking::dea.plot.frontier(xref.trim, yref.trim,RTS="fdh", lty="dotted",add= TRUE,col="green")
+
+points(dataout$Xvol, dataout$Y, col="red" )
+
+legend("topleft",legend=c("VRS","CRS", "FDH", "Outliers"),lty=2:4,col=c("black", "blue","green","red"))
+rug(xref.trim, col = "grey")
+abline(v = medX, col = "grey", lty = "dotted") 
+abline(h = medY, col = "grey", lty = "dotted")
+abline(v = p75X, col = "grey", lty = "dotted") 
+abline(h = p75Y, col = "grey", lty = "dotted")
+
+detach(package:Benchmarking)
+library(FEAR)
+
+rts.test(x = xref.trim, y = yref.trim, alpha =AlphaTest, orient = 2, B = 100)
+
+@
+
+
+\end{document}
