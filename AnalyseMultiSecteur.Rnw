@@ -1,15 +1,22 @@
 % 09/01/2013:Fichier Sweave qui crie des rapports par secteur automatiques
-%           : Inspiré du Programme DeaReport.rnw
+%           : Inspiri du Programme DeaReport.rnw
 %  Changement de notation des fichiers   dataref  -> dataref
 %                                        dataref2 -> dataref.all
 %                                        dataout  -> dataref.out
-% 11/03/2013  : Programme compatible avec génération par lots 
-%             : les Nos des secteurs sont issus du fichier Secteur.dat 
+% 11/03/2013  : Programme compatible avec giniration par lots 
+%               les Nos des secteurs sont issus du fichier Secteur.dat 
+% 26/03/2013  : Simplification de la gestioon des fichiers, on ne difinit que 3 fichiers
+%               dataall, dataall.out (les outliers), et dataaall.trim (sans les outliers)
+%               Chaque "chunk" (ou section) utilise son fichier (subset des 3 prec. ) et difinit ses
+%               bornes, nombre de points, etc... 
+% 26/04/2013  : Correction d'une ERREUR sur la vcariable "E" qui doit ??tre "EMV"
+%             : DEA effectu?? sans les missing   
 
 \documentclass[a4paper]{article}
 
 \title{Moulinette Infernale !}
 \author{Christophe }
+
 
 \usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
 \usepackage{rotating}
@@ -20,7 +27,7 @@
 % Quelques Options de dipart pour mettre les graphiques dans un sous repertoire
 % et leur donner le nom Graph-001
 
-\SweaveOpts{prefix.string=Graphics/Sec151C_Graph}  
+\SweaveOpts{prefix.string=Graphics/New}  
 
 % Et pour laisser l affichage des commentaires du programmes
 \SweaveOpts{keep.source=TRUE}
@@ -35,9 +42,9 @@
 
 <<echo=FALSE, results=hide>>=
 
-## D abord on efface tout silencieusement... pas si oon traite par lots !!
+## D abord on efface tout silencieusement... pas si on traite par lots !!
 
-#rm(list=ls())
+ #rm(list=ls())   # <<<<<<<< commenter si traitement par lots !!!!
 
 ## Second change the working directory
 
@@ -59,63 +66,68 @@ library(xtable)
 ASecteur <-scan("Secteur.dat", what = list(""))
 Secteur <- as.character(ASecteur[1])
 
-#Secteur <- "D151C"
+#Secteur <- "D151C"  # pour test
 
-dataall <- read.dta(paste("Data/",Secteur,"Stat.dta", sep = ""))   # TOUTES les années 
+dataall <- read.dta(paste("Data/",Secteur,"Stat.dta", sep = ""))   # TOUTES les annies 
 dim(dataall)
 
 #Pb d'importation 
 dataall$an1x<-as.numeric(as.character(dataall$an1x))
 
-dataall.out <-subset(dataall,atyp==1)   # <- QUE les outliers
+dataall.trim <- subset(dataall,atyp==0) # <- ttes annies, sans les atypiques
+nball.trim <- nrow(dataall.trim)
+
+dataall.out <-subset(dataall,atyp==1)   # <- ttes annies,QUE les outliers
 dim(dataall.out)
 
-#  Year 20006 
-dataref.all <- subset(dataall,an1x==2006 )  # <- QUE 2006, avec les atypiques
-nref2=nrow(dataref.all)
+# #  Year 20006 
+# dataref.all <- subset(dataall,an1x==2006 )  # <- QUE 2006, avec les atypiques
+# nref2=nrow(dataref.all)
+# 
+# dataref <- subset(dataall,an1x==2006 & atyp==0)  # <- QUE  2006, sans les atypiques
+# nref=nrow(dataref)
+# 
+# dataref.out <- subset(dataall,an1x==2006 & atyp==1)   # <- QUE 2006, QUE les atypiques
+# Nout <- nrow(dataref.out)
+# 
+# # Donnies univariies pour les tracis de midiane et les rug !
+# xref2=matrix(c(dataref.all$Xvol),nrow=nref2,ncol=1)
+# yref2=matrix(c(dataref.all$Y),nrow=nref2,ncol=1)
 
-dataref <- subset(dataall,an1x==2006 & atyp==0)  # <- QUE  2006, sans les atypiques
-nref=nrow(dataref)
-
-dataref.out <- subset(dataall,an1x==2006 & atyp==1)   # <- QUE 2006, QUE les atypiques
-Nout <- nrow(dataref.out)
-# Données univariées pour les tracés de médiane et les rug !
-xref2=matrix(c(dataref.all$Xvol),nrow=nref,ncol=1)
-yref2=matrix(c(dataref.all$Y),nrow=nref,ncol=1)
-
-# Récupératino du mon du secteur...
+# Ricupiratino du mon du secteur...
 nom <- as.character(dataall$libelleape[1])
 
 @
 
 % ------------Debut du papier -------------
 \section*{Secteur \Sexpr{nom} (\Sexpr{c(Secteur)}) }
-Pour le secteur \Sexpr{c(Secteur)}, on a \textbf{\Sexpr{nrow(dataall)}} observations (toutes années confondues). Pour 2006,  on a \textbf{\Sexpr{nrow(dataref.all)}} observations  dont \textbf{\Sexpr{nrow(dataref.out)}} firmes classies "atypiques" par une procédure basée sur un index des inputs $Xvol$ (1 dimension). 
+Pour le secteur \Sexpr{c(Secteur)}, on a \textbf{\Sexpr{nrow(dataall)}} observations (toutes annees confondues) dont \textbf{\Sexpr{nrow(dataall.out)}} observations atypiques. 
 
 \section{Concentration du secteur \& indices }
 
 <<echo=FALSE, results=hide>>=
 dataref96.all <- subset(dataall,an1x==1996)
+dataref06.all <- subset(dataall,an1x==2006)
 
 foo.1996 <- ineq(dataref96.all$Y,type="Gini")
-foo.2006 <- ineq(dataref.all$Y,type="Gini")
+foo.2006 <- ineq(dataref06.all$Y,type="Gini")
 
 @
 
-L'indice de Gini vaut \textbf{\Sexpr{round(foo.1996, 3)}} en 1996 et \textbf{\Sexpr{round(foo.2006,3)}} en 2006. Les courbes de Lorentz décrivent la concentration pour ces deux annéees. 
+L'indice de Gini vaut \textbf{\Sexpr{round(foo.1996, 3)}} en 1996 et \textbf{\Sexpr{round(foo.2006,3)}} en 2006. Les courbes de Lorentz decrivent la concentration pour ces deux annees. 
 
 
 <<fig=TRUE,echo=false>>=
 
 Lorentz.1996 <- Lc(dataref96.all$YV)
-Lorentz.2006 <- Lc(dataref.all$YV)
+Lorentz.2006 <- Lc(dataref06.all$YV)
 plot(Lorentz.1996,col="darkred", lty = 1, lwd=4, sub=paste(" Lorentz Curves, secteur",Secteur,"") )
 lines(Lorentz.2006, col="blue", lty = 2, lw=2)
 legend("topleft",legend=c("Prod. en Valeur 1996", "Prod. en valeur 2006"),lty=1:2,col=c("darkred", "blue"))
 
 @
 
-Les indices de concentration sont représentés pour différentes années. 
+Les indices de concentration sont repr??sent??s pour diff??rentes ann??es. 
 
 <<fig=TRUE,echo=false>>=
 
@@ -154,247 +166,493 @@ legend("topleft",legend=c("Herfindahl index", "CR4 index"),lty=1:2,col=c("darkre
 
 
 
-<<echo=false,results=tex>>=
-annee <-2006
-dataref.all$YsurK <- dataref.all$Y / dataref.all$K
-dataref.all$YsurL <- dataref.all$Y / dataref.all$L
-dataref.all$YsurEMV <- dataref.all$Y / dataref.all$EMV
 
+\section{Data in 2006}
+<<echo=FALSE, results=hide>>=
+# Jusqu'` nouvel ordre, les donnees sont en 2006 
+annee <-2006
+dataref <- subset(dataall, an1x==annee & atyp==0)
+dataref.out <- subset(dataall, an1x==annee & atyp==1)
+nref=nrow(dataref)
+xref =matrix(c(dataref$Xvol),nrow=nref,ncol=1)
+yref=matrix(c(dataref$Y),nrow=nref,ncol=1)
+
+# Bornes
+bornex <- round(max(xref), d=0)
+borney <- round(max(yref), d=0)
+bornex50 <- round(quantile(xref,probs=c(0.50))/100, d=0)*100
+borney50 <- round(quantile(yref,probs=c(0.50))/100, d=0)*100
+bornex75 <- round(quantile(xref,probs=c(0.75))/100, d=0)*100
+borney75 <- round(quantile(yref,probs=c(0.75))/100, d=0)*100
+bornex90 <- round(quantile(xref,probs=c(0.90))/100, d=0)*100
+bornex90 <- round(quantile(yref,probs=c(0.90))/100, d=0)*100
+@
+
+Pour 2006,  on a \textbf{\Sexpr{nrow(dataref)}} observations hors atypiques + \textbf{\Sexpr{nrow(dataref.out)}} firmes classees "atypiques" par une procedure basee sur un index des inputs $Xvol$ (1 dimension)
+
+
+<<echo=false,results=tex>>=
+# A VOIR POUQUOI UNIQUEMENT SUR 2006  !
+# a voir Y en valeur  !!!!
+
+dataref$YsurK <- dataref$Y / dataref$K
+dataref$YsurL <- dataref$Y / dataref$L
+dataref$YsurEMV <- dataref$Y / dataref$EMV
 
 Mycap <- paste("Year", annee,", Secteur",Secteur,"")
 Mystats <-  list("n", "mean", "min", "median",  "max", "na")
 Mylab <- "Monlabel"
-Myvars<- with(dataref.all, data.frame( "Y (valeur)" = dataref.all$YV,
-                                      "Y sur K" = dataref.all$YsurK,
-                                      "Y sur L" = dataref.all$YsurL, 
-                                      "Y sur EMV" = dataref.all$YsurEMV)                                                                                                                          
+Myvars<- with(dataref, data.frame( "Y (valeur)" = dataref$YV,
+                                      "Y sur K" = dataref$YsurK,
+                                      "Y sur L" = dataref$YsurL, 
+                                      "Y sur EMV" = dataref$YsurEMV)                                                                                                                          
                                       )
 tableContinuous(vars = Myvars, stats = Mystats, cap = Mycap, prec=2, lab = Mylab, longtable = FALSE)
 @
 
-\section{Data in 2D in 2006}
-
 <<fig=TRUE,echo=false>>=
-xref=matrix(c(dataref$Xvol),nrow=nref,ncol=1)
-yref=matrix(c(dataref$Y),nrow=nref,ncol=1)
-
-medX <-median(xref)
-p75X <-quantile(xref,probs=c(0.75))
-p90X <-quantile(xref,probs=c(0.90))
-medY <-median(yref)
-p75Y <-quantile(yref,probs=c(0.75))
-p90Y <-quantile(yref,probs=c(0.90))
-
-bornex <- round(max(xref), d=0)
-borney <- round(max(yref), d=0)
-## On zoome 
-
-bornex75 <- round(p75X/100, d=0)*100
-borney75 <- round(p75Y/100, d=0)*100
-bornex50 <- round(medX/100, d=0)*100
-borney50 <- round(medY/100, d=0)*100
-
 plot(dataref$Xvol, dataref$Y, col="black" ,xlab="Xvol", lwd=1, 
     xlim=c(0,bornex),ylim=c(0,borney),
-    ylab="Y",  main=paste(" Data points in 2006, secteur ",Secteur,""),
+    ylab="Y",  main=paste(" Data points in", annee, "secteur ",Secteur,""),
     sub=paste(nrow(dataref.out)," outliers (red), echantillon complet de [ Xvol = ",bornex,",  Y =", borney, "]"))
 
 points(dataref.out$Xvol, dataref.out$Y, col="red" )
 rug(xref, col = "grey")
-abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
-abline(h = medY, col = "grey", lty = "dotted", lwd=2)
-abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
-abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
 
 legend("topleft",legend=c("Data", "Quantiles", "Outliers"),lty=2:4,col=c("black", "grey", "red"))
-
 @
 
+
 On peut zoomer sur une zone plus petite
+
+
 
 <<fig=TRUE,echo=false>>=
 
 plot(dataref$Xvol, dataref$Y, col="black" ,xlab="Xvol", lwd=1, 
     xlim=c(0,bornex75),ylim=c(0,borney75),
-    ylab="Y",  main=paste(" Data points in 2006 (Zoom Y< P75, X <P75), secteur ",Secteur,""),
-    sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+    ylab="Y",  main=paste(" Data points in", annee, "(Zoom Y< P75, X <P75), secteur ",Secteur,""),
+    sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [Xvol < ",bornex75,",  Y <", borney75, "]"))
 
 points(dataref.out$Xvol, dataref.out$Y, col="red" )
 rug(xref, col = "grey")
-abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
-abline(h = medY, col = "grey", lty = "dotted", lwd=2)
-abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
-abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
 
 legend("topleft",legend=c("Data", "Quantiles", "Outliers"),lty=2:4,col=c("black", "grey", "red"))
-
 @
-\section{Frontier analysis}
 
-\subsection{m-Frontiers sur l'échantillon complet en 2006 (using FEAR)}
+%\section{Frontier analysis}
 
-On travaille ici avec le fichier complet, avec  l'indice $Xvol$ (2-dimensions) pour 2006. On représente les frontières input et output-oriented (avec FEAR). 
+\subsection{m-Frontiers en 2006 (using FEAR)}
+
+On travaille ici  avec  l'indice $Xvol$ (2-dimensions) pour 2006. On represente les frontieres input et output-oriented (avec FEAR). 
 
 
 <<fig = TRUE, echo = FALSE, results=hide>>=
+
 # M-frontier 
 M.order<-100
 M.rep <-200
+
 # Scores output-oriented 
-score.o <-orderm(XOBS=t(xref2),YOBS=t(yref2), ORIENTATION=2, M=M.order, NREP=M.rep, XREF=NULL, YREF=NULL)
-y.o <-yref2/t(score.o)[,1]
+score.o <-orderm(XOBS=t(xref),YOBS=t(yref), ORIENTATION=2, 
+                 M=M.order, NREP=M.rep, XREF=NULL, YREF=NULL)
+y.o <-yref/t(score.o)[,1]
 # Scores input-oriented 
-score.i <-orderm(XOBS=t(xref2),YOBS=t(yref2), ORIENTATION=1, M=M.order, NREP=M.rep, XREF=NULL, YREF=NULL)
-x.i <-xref2/t(score.i)[,1]
+score.i <-orderm(XOBS=t(xref),YOBS=t(yref), ORIENTATION=1, 
+                 M=M.order, NREP=M.rep, XREF=NULL, YREF=NULL)
+x.i <-xref/t(score.i)[,1]
 
-plot(xref2,y.o, type="l", xlab="Xvol",  col="green", pch="*",
-    xlim=c(0,bornex75),ylim=c(0,borney75),
-    ylab="Output",  main=paste(" M-frontier in 2006, M=",M.order,", Rep=",M.rep," secteur",Secteur),
-        sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+plot(xref,y.o, type="l", xlab="Xvol",  col="green", pch="*",
+    xlim=c(0,bornex75),ylim=c(0,borney75),  ylab="Output", lty=1, 
+     main=paste(" M-frontier in", annee,", M=",M.order,", Rep=",M.rep," secteur",Secteur),
+     sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < "
+               ,bornex75,",  Y <", borney75, "]"))
 
-points(x.i,yref2, type="l", xlab="Xvol",  col="blue", pch="*")
+points(x.i,yref, type="l", xlab="Xvol",  col="blue", pch="*", lty=1)
 
-points(xref2,yref2,  pch="+", col="grey" )
+points(xref,yref,  pch="+", col="grey" )
 points(dataref.out$Xvol, dataref.out$Y, col="red" )
 
-rug(xref2, col = "grey")
-abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
-abline(h = medY, col = "grey", lty = "dotted", lwd=2)
-abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
-abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
 
-legend("topleft",legend=c("input direction","output direction"),lty=2:4,col=c("blue","green"))
+legend("topleft",legend=c("input direction","output direction"),lty=c(1,1),col=c("blue","green"))
 
 @
 
+\subsection{m-Frontiers en 2006 (using FRONTILES)}
 
-\subsection{$\alpha$-Frontiers sur l'échantillon complet en 2006 (using Frontiles)}
+<<fig = TRUE, echo = FALSE, results=hide>>=
+# M-frontier avec FRONTILES
+M.order<-100
+
+# M Scores avec Frontiles  
+scoreM <- ordermscore(as.matrix(dataref$Xvol),as.matrix(dataref$Y), m=M.order)
+
+# M-frontier  Scores output-oriented 
+# On ordonne (dur dur !!)  
+couple.i <-cbind(dataref$Xvol*scoreM$input, dataref$Y)
+couple.i <- couple.i[order( couple.i[,1],couple.i[,2]),]
+
+
+# M-frontier  Scores output-oriented 
+# On ordonne (dur dur !!)  
+couple.o <-cbind(dataref$Xvol, dataref$Y/scoreM$output)
+couple.o <- couple.o[order( couple.o[,1],couple.o[,2]),]
+
+# M-frontier  Scores hyperbolic-oriented 
+# On ordonne (dur dur !!)   
+## <<<<<  ---------------- A faire 
+couple.h <-cbind(dataref$Xvol, dataref$Y/scoreM$h)
+couple.h <- couple.h[order( couple.h[,1],couple.h[,2]),]
+
+#Graphique
+plot(couple.i[,1],couple.i[,2], type="l", xlab="Xvol",  col="green", pch="*",
+     main=paste(" M-frontier in", annee,", M=",M.order,"secteur",Secteur),
+     sub=paste(nrow(dataref.out)," outliers (red)"))
+
+points(couple.o[,1],couple.o[,2], type="l", col="blue", lty=1)
+points(couple.h[,1],couple.h[,2], type="l", col="red", lty=2)
+
+
+points(xref,yref,  pch="+", col="grey" )
+points(dataref.out$Xvol, dataref.out$Y, col="red" )
+
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
+
+legend("topleft",legend=c("input direction","output direction", "hyperbolic direction (??)"),lty=c(1,1,2),col=c("blue","green", "red"))
+
+@
+
+On peut zoomer sur $Xvol \leq P_{75}[Xvol]$ 
+
+<<fig = TRUE, echo = FALSE, results=hide>>=
+#Graphique
+plot(couple.i[,1],couple.i[,2], type="l", xlab="Xvol",  col="green", pch="*",
+    xlim=c(0,bornex75),ylim=c(0,borney75),  ylab="Output",  
+     main=paste(" M-frontier in", annee,", M=",M.order,", Rep=",M.rep," secteur",Secteur),
+     sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < "
+               ,bornex75,",  Y <", borney75, "]"))
+
+points(couple.o[,1],couple.o[,2], type="l", col="blue", lty=1)
+points(couple.h[,1],couple.h[,2], type="l", col="red", lty=2)
+
+
+points(xref,yref,  pch="+", col="grey" )
+points(dataref.out$Xvol, dataref.out$Y, col="red" )
+
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
+
+legend("topleft",legend=c("input direction","output direction", "hyperbolic direction (??)"),lty=c(1,1,2),col=c("blue","green", "red"))
+@
+
+\subsection{$\alpha$-Frontiers en 2006 (using Frontiles)}
 
 <<fig=TRUE,echo=FALSE>>=
+
 alpha=0.985
 #Frontiles
-plot(xref2,yref2,  pch="+", col="grey",  main=paste(" alpha-frontier in 2006, alpha=",alpha,", secteur",Secteur, "(Output oreinted)") )
+plot(xref,yref,  pch="+", col="grey",lwd=2,  
+     main=paste(" alpha-frontier in", annee, "alpha=",alpha,", secteur",Secteur, ""),
+     sub=paste(nrow(xref),"points et ", nrow(dataref.out)," outliers(red)"))
 points(dataref.out$Xvol, dataref.out$Y, col="red" )
 
-alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),type="input",alpha=alpha,col='blue',lty=2,add=TRUE)
-alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),type="output",alpha=alpha,col='green',lty=1,add=TRUE)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="input",alpha=alpha,col='blue',lty=1,add=TRUE)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="output",alpha=alpha,col='green',lty=1,add=TRUE)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="hyper",alpha=alpha,col='red',lty=2,add=TRUE)
 
-legend("topleft",legend=c("input direction","output direction"),lty=2:4,col=c("blue","green"))
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
 
-rug(xref2, col = "grey")
-abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
-abline(h = medY, col = "grey", lty = "dotted", lwd=2)
-abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
-abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+legend("topleft",legend=c("input direction","output direction", "hyperbolic"),lty=c(1,1,2),col=c("blue","green", "red"))
 
 @
 
-On peut zoomer sur une zone plus petite et se restreindre à output oriented, et ajouter l'intervalle de confiance.
+On peut zoomer sur une zone plus petite.
 
 <<fig=TRUE,echo=FALSE>>=
 
-plot(xref2,yref2,  pch="+", col="grey",   xlim=c(0,bornex75),ylim=c(0,borney75), main=paste(" alpha-frontier in 2006, alpha=",alpha,", secteur",Secteur) , sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+plot(xref,yref,  pch="+", col="grey",   xlim=c(0,bornex75),ylim=c(0,borney75), 
+     main=paste(" alpha-frontier in", annee, "alpha=",alpha,", secteur",Secteur) , 
+     sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
 points(dataref.out$Xvol, dataref.out$Y, col="red" )
 
 #alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),type="input",alpha=alpha,col='blue',lty=2,add=TRUE)
-alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),type="output",alpha=alpha,col='green',lty=1,add=TRUE, confidence = TRUE, shade=TRUE)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="input",alpha=alpha,col='blue',lty=1,add=TRUE)
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="output",alpha=alpha,col='green',lty=1,add=TRUE, confidence = FALSE, shade=FALSE)
 
-#legend("topleft",legend=c("input direction","output direction"),lty=2:4,col=c("blue","green"))
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="hyper",alpha=alpha,col='red',lty=2,add=TRUE)
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
 
-rug(xref2, col = "grey")
-abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
-abline(h = medY, col = "grey", lty = "dotted", lwd=2)
-abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
-abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+legend("topleft",legend=c("input direction","output direction", "hyperbolic"),lty=c(1,1,2),col=c("blue","green", "red"))
+
 @
 
+On peut zoomer sur une zone plus petite et se restreindre a \textbf{hyperbolic oriented} vs \textbf{output oriented} , et ajouter l'intervalle de confiance.
 
-\section{Efficacités (using Benchmarking \& frontiles)}
+<<fig=TRUE,echo=FALSE>>=
+
+plot(xref,yref,  pch="+", col="grey",   xlim=c(0,bornex75),ylim=c(0,borney75), 
+     main=paste(" alpha-frontier in", annee, "alpha=",alpha,", secteur",Secteur) , 
+     sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+points(dataref.out$Xvol, dataref.out$Y, col="red" )
+
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="output",alpha=alpha,col='green',lty=1,add=TRUE,  confidence = TRUE, shade=TRUE)
+
+alphafrontier.2d(as.matrix(dataref$Xvol),as.matrix(dataref$Y),
+                 type="hyper",alpha=alpha,col='red',lty=2,add=TRUE)
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
+
+legend("topleft",legend=c( "output" ,"hyperbolic", "Conf. Interval (output)"),lty=c(1,2,1),col=c( "green","red", "grey"))
+
+@
+\clearpage
+
+\section{Efficiencies (using Benchmarking \& Frontiles)}
 \subsection{En 1996}
 <<echo=false,results=tex>>=
 
-# Calcul des efficacités avec DEA, m-frontières et alpha-frontières en 2006
-#DEA
-#Ici on prends dataref.all  <- QUE 2006, avec les atypiques
+# Calcul des efficacitis avec DEA, m-fronti??res et alpha-fronti??res en 2006
+#DEA 
+#Correction 26/04/2013 : DEA calcul?? sur une fronti??re sans les  outliers 
 annee <- 1996
-dataref.1996 <- subset(dataall,an1x==1996 )  # <- QUE 1996, avec les atypiques
-nref1996=nrow(dataref.1996)
+data.1996 <- subset(dataall,an1x==1996)  # <- QUE 1996, avec les atypiques
+n1996=nrow(data.1996)
 
-xref=matrix(c(dataref.1996$K,dataref.1996$L,dataref.1996$M),nrow=nref1996,ncol=3)
-yref=matrix(c(dataref.1996$Y),nrow=nref1996,ncol=1)
+xobs=matrix(c(data.1996$K,data.1996$L,data.1996$EMV),nrow=n1996,ncol=3)
+yobs=matrix(c(data.1996$Y),nrow=n1996,ncol=1)
 
-spam <- Benchmarking::dea(X=xref, Y=yref, RTS="vrs", ORIENTATION="out")
-dataref.1996$DEA <-1/eff(spam)
+#Definition des points servant de r??f??rence pour la fronti??re (26/04/2006)
+data.1996.trim <- subset(dataall,an1x==1996 & atyp==0 )  # <- QUE 1996, avec les atypiques
+xref=matrix(c(data.1996.trim$K,data.1996.trim$L,data.1996.trim$EMV),nrow=nrow(data.1996.trim),ncol=3)
+yref=matrix(c(data.1996.trim$Y),nrow=nrow(data.1996.trim),ncol=1)
 
-# M-frontier 
+spam <- Benchmarking::dea(X=xobs, Y=yobs, XREF=xref, YREF=yref, RTS="vrs", ORIENTATION="out")
+data.1996$DEA <-1/eff(spam)
 
-M.order<-100
-M.rep <-200
-# Scores output-oriented 
+# On supprime les valeurs calcul??es pour les outliers
+data.1996$DEA <-replace(data.1996$DEA, which(data.1996$atyp==1), NA)
 
-spam2 <- ordermscore(xref, yref, xeval=xref, yeval=yref, m=M.order)
-dataref.1996$Mscore <- spam2$output 
+# M-frontier  Scores output-oriented 
+spam2 <- ordermscore(xobs, yobs, xeval=xobs, yeval=yobs, m=M.order)
+data.1996$Mscore <- spam2$output 
 
-#alpha-frontiere
+#alpha-frontiere Scores output-oriented 
+foo <- alphascore(xobs, yobs, xeval=xobs, yeval=yobs, alpha=alpha)
+data.1996$Ascore <-foo$output
 
-foo <- alphascore(xref, yref, xeval=xref, yeval=yref, alpha=alpha)
-dataref.1996$Ascore <-foo$output
+## On ajoute les scores hyperboliques (03/05/2013)
+# M-frontier  Scores hyperboliques 
+data.1996$MscoreH <- spam2$hyper 
+
+#alpha-frontiere Scores hyperboliques
+data.1996$AscoreH <-foo$hyper
 
 #Table
-Mycap <- paste("Efficiency scores for",annee,", secteur",Secteur,", m=",M.order,", alpha = ", alpha,"(output oriented, 3 inputs).")
-Mystats <-  list( "mean", "min", "median",  "max", "n", "na")
+nout <- nrow(data.1996)-nrow(data.1996.trim)
+Mycap <- paste("Efficiency scores for all points (",nout," values for outliers reported), year",annee,", secteur",Secteur,", m=",M.order,", alpha = ", alpha,"(output oriented and hyperbolic, 3 inputs) .")
+Mystats <-  list( "mean", "min", "median",  "max", "n", 
+                "$\\bar{Nb}_{Eff}$" = function(x){return(length(which(x==1)))},
+                "$\\bar{Nb}_{Super}$" = function(x){return(length(which(x >1)))}, 
+                  "na")
 Mylab <- "Monlabel"
-Myvars<- with(dataref.1996, data.frame( "DEA (vrs)" = dataref.1996$DEA,
-                                      "m-Frontier" = dataref.1996$Mscore,
-                                      "alpha-Frontier" = dataref.1996$Ascore
-                                       )                                                                                                                          
+Myvars<- with(data.1996, data.frame( "DEA (vrs)" = data.1996$DEA,
+                                      "m-Frontier Output" = data.1996$Mscore,
+                                     "M-frontier Hyperbolic" = data.1996$MscoreH,
+                                      "alpha-Frontier Output" = data.1996$Ascore,
+                                     "alpha-Frontier Hyperbolic" = data.1996$AscoreH)                                                                                                                          
+                                      )
+tableContinuous(vars = Myvars, stats = Mystats, cap = Mycap, prec=2, lab = Mylab, longtable = FALSE)
+
+@
+
+
+<<echo=false,results=tex>>=
+# Calcul AVEC un seul input Xvol
+
+xobs=matrix(c(data.1996$Xvol),nrow=n1996,ncol=1)
+yobs=matrix(c(data.1996$Y),nrow=n1996,ncol=1)
+
+
+xref=matrix(c(data.1996.trim$Xvol), nrow=nrow(data.1996.trim),ncol=1)
+yref=matrix(c(data.1996.trim$Y),nrow=nrow(data.1996.trim),ncol=1)
+
+spam <- Benchmarking::dea(X=xobs, Y=yobs, XREF=xref, YREF=yref, RTS="vrs", ORIENTATION="out")
+data.1996$DEA <-1/eff(spam)
+# On supprime les valeurs calcul??es pour les outliers
+data.1996$DEA <-replace(data.1996$DEA, which(data.1996$atyp==1), NA)
+
+# M-frontier  Scores output-oriented 
+spam2 <- ordermscore(xobs, yobs, xeval=xobs, yeval=yobs, m=M.order)
+data.1996$Mscore <- spam2$output 
+
+#alpha-frontiere
+foo <- alphascore(xobs, yobs, xeval=xobs, yeval=yobs, alpha=alpha)
+data.1996$Ascore <-foo$output
+
+## On ajoute les scores hyperboliques (03/05/2013)
+# M-frontier  Scores hyperboliques 
+data.1996$MscoreH <- spam2$hyper 
+
+#alpha-frontiere Scores hyperboliques
+data.1996$AscoreH <-foo$hyper
+
+#Table
+nout <- nrow(data.1996)-nrow(data.1996.trim)
+Mycap <- paste("Efficiency scores for all points (",nout," values for outliers reported), year",annee,", secteur",Secteur,", m=",M.order,", alpha = ", alpha,"(output  and hyperbolic oriented, ONLY 1 input) .")
+
+Mylab <- "Monlabel"
+Myvars<- with(data.1996, data.frame( "DEA (vrs)" = data.1996$DEA,
+                                      "m-Frontier Output" = data.1996$Mscore,
+                                      "m-frontier Hyperbolic" = data.1996$MscoreH,
+                                      "alpha-Frontier Output" = data.1996$Ascore,
+                                      "alpha-Frontier Hyperbolic" = data.1996$AscoreH)                                                                                                                          
                                       )
 tableContinuous(vars = Myvars, stats = Mystats, cap = Mycap, prec=2, lab = Mylab, longtable = FALSE)
 @
 
+\clearpage
 \subsection{En 2006}
 <<echo=false,results=tex>>=
 
-# Calcul des efficacités avec DEA, m-frontières et alpha-frontières en 2006
+# Calcul des efficacitis avec DEA, m-frontieres et alpha-frontieres en 2006
 #DEA
-#Ici on prends dataref.all  <- QUE 2006, avec les atypiques
 annee <-2006
-xref=matrix(c(dataref.all$K,dataref.all$L,dataref.all$M),nrow=nref2,ncol=3)
-yref=matrix(c(dataref.all$Y),nrow=nref2,ncol=1)
+data.2006 <- subset(dataall,an1x==2006 )  # <- QUE 2006, avec les atypiques
+n2006=nrow(data.2006)
 
-spam <- Benchmarking::dea(X=xref, Y=yref, RTS="vrs", ORIENTATION="out")
-dataref.all$DEA <-1/eff(spam)
+xobs=matrix(c(data.2006$K,data.2006$L,data.2006$EMV),nrow=n2006,ncol=3)
+yobs=matrix(c(data.2006$Y),nrow=n2006,ncol=1)
 
-# M-frontier 
+#Definition des points servant de r??f??rence pour la fronti??re (26/04/2006)
+data.2006.trim <- subset(dataall,an1x==2006 & atyp==0 )  # <- QUE 2006, avec les atypiques
+xref=matrix(c(data.2006.trim$K,data.2006.trim$L,data.2006.trim$EMV),nrow=nrow(data.2006.trim),ncol=3)
+yref=matrix(c(data.2006.trim$Y),nrow=nrow(data.2006.trim),ncol=1)
 
-M.order<-100
-M.rep <-200
-# Scores output-oriented 
+spam <- Benchmarking::dea(X=xobs, Y=yobs, XREF=xref, YREF=yref, RTS="vrs", ORIENTATION="out")
+data.2006$DEA <-1/eff(spam)
 
-spam2 <- ordermscore(xref, yref, xeval=xref, yeval=yref, m=M.order)
-dataref.all$Mscore <- spam2$output 
+# On supprime les valeurs calcul??es pour les outliers
+data.2006$DEA <-replace(data.2006$DEA, which(data.2006$atyp==1), NA)
+
+# M-frontier  Scores output-oriented 
+spam2 <- ordermscore(xobs, yobs, xeval=xobs, yeval=yobs, m=M.order)
+data.2006$Mscore <- spam2$output 
 
 #alpha-frontiere
+foo <- alphascore(xobs, yobs, xeval=xobs, yeval=yobs, alpha=alpha)
+data.2006$Ascore <-foo$output
 
-foo <- alphascore(xref, yref, xeval=xref, yeval=yref, alpha=alpha)
-dataref.all$Ascore <-foo$output
+# M-frontier  Scores hyperbolic-oriented 
+data.2006$MscoreH <- spam2$hyper 
+
+#alpha-frontiere hyperbolic
+data.2006$AscoreH <-foo$hyper
+
 
 #Table
-Mycap <- paste("Efficiency scores for",annee,", secteur",Secteur,", m=",M.order,", alpha = ", alpha,"(output oriented, 3 inputs).")
-Mystats <-  list( "mean", "min", "median",  "max", "n", "na")
+nout <- nrow(data.2006)-nrow(data.2006.trim)
+Mycap <- paste("Efficiency scores for all points (",nout," values for outliers reported), year",annee,", secteur",Secteur,", m=",M.order,", alpha = ", alpha,"(output and hyperbolic oriented, 3 inputs) .")
+Mystats <-  list( "mean", "min", "median",  "max", "n", 
+                "$\\bar{Nb}_{Eff}$" = function(x){return(length(which(x==1)))},
+                "$\\bar{Nb}_{Super}$" = function(x){return(length(which(x >1)))}, 
+                  "na")
 Mylab <- "Monlabel"
-Myvars<- with(dataref.all, data.frame( "DEA (vrs)" = dataref.all$DEA,
-                                      "m-Frontier" = dataref.all$Mscore,
-                                      "alpha-Frontier" = dataref.all$Ascore
-                                       )                                                                                                                          
+Myvars<- with(data.2006, data.frame( "DEA (vrs)" = data.2006$DEA,
+                                      "m-Frontier Output" = data.2006$Mscore,
+                                      "m-frontier Hyperbolic" = data.2006$MscoreH,
+                                      "alpha-Frontier Output" = data.2006$Ascore,
+                                      "alpha-Frontier Hyperbolic" = data.2006$AscoreH)                                                                                                                          
                                       )
 tableContinuous(vars = Myvars, stats = Mystats, cap = Mycap, prec=2, lab = Mylab, longtable = FALSE)
 @
 
+<<echo=false,results=tex>>=
 
-\section{Décomposition de Malmquist façon Simar \& Wilson (1998) et Wheelock \& Wilson (1999) }
+# Calcul des efficacitis avec DEA, m-frontieres et alpha-frontieres en 2006  :ONE INPUT
+#DEA
+xobs=matrix(c(data.2006$Xvol),nrow=n2006,ncol=1)
+yobs=matrix(c(data.2006$Y),nrow=n2006,ncol=1)
 
-La décomposition de malmquist utilisée par Simar \& Wilson (1998) et Wheelock \& Wilson (1999)  propose une décompsotion du terme technique en effet purement technique et en un second terme difficilel à interpreter.  On a donc 4 temes dans cette déomposition qui utilise la  distance VRS et la distance CRS.
+xref=matrix(c(data.2006.trim$Xvol),nrow=nrow(data.2006.trim),ncol=1)
+yref=matrix(c(data.2006.trim$Y),nrow=nrow(data.2006.trim),ncol=1)
+
+spam <- Benchmarking::dea(X=xobs, Y=yobs, XREF=xref, YREF=yref, RTS="vrs", ORIENTATION="out")
+data.2006$DEA <-1/eff(spam)
+# On supprime les valeurs calcul??es pour les outliers
+data.2006$DEA <-replace(data.2006$DEA, which(data.2006$atyp==1), NA)
+
+# M-frontier  Scores output-oriented 
+spam2 <- ordermscore(xobs, yobs, xeval=xobs, yeval=yobs, m=M.order)
+data.2006$Mscore <- spam2$output 
+
+#alpha-frontiere
+
+foo <- alphascore(xobs, yobs, xeval=xobs, yeval=yobs, alpha=alpha)
+data.2006$Ascore <-foo$output
+
+# M-frontier  Scores hyperbolic-oriented 
+data.2006$MscoreH <- spam2$hyper 
+
+#alpha-frontiere hyperbolic
+data.2006$AscoreH <-foo$hyper
+
+##03/05/2013
+
+#Table
+nout <- nrow(data.2006)-nrow(data.2006.trim)
+Mycap <- paste("Efficiency scores for all points (",nout," values for outliers reported), year",annee,", secteur",Secteur,", m=",M.order,", alpha = ", alpha,"(output oriented, ONLY 1 input) .")
+Mylab <- "Monlabel"
+Myvars<- with(data.2006, data.frame( "DEA (vrs)" = data.2006$DEA,
+                                      "m-Frontier Output" = data.2006$Mscore,
+                                      "m-frontier Hyperbolic" = data.2006$MscoreH,
+                                      "alpha-Frontier Output" = data.2006$Ascore,
+                                      "alpha-Frontier Hyperbolic" = data.2006$AscoreH)                                                                                                                          
+                                      )                                                                                                                       
+tableContinuous(vars = Myvars, stats = Mystats, cap = Mycap, prec=2, lab = Mylab, longtable = FALSE)
+@
+
+\clearpage
+\section{Malmquist decomposition using Simar \& Wilson (1998) and Wheelock \& Wilson (1999) }
+
+La dicomposition de malmquist utilisie par Simar \& Wilson (1998) et Wheelock \& Wilson (1999)  propose une dicompsotion du terme technique en effet purement technique et en un second terme difficilel ` interpreter.  On a donc 4 temes dans cette diomposition qui utilise la  distance VRS et la distance CRS.
 
 \begin{eqnarray*}
     MI &=& Pure.Eff \times Scale \\
@@ -429,15 +687,15 @@ i2 <-c(i2,1900,2000, 2006, 2006)
 table.malm.ww <-data.frame(toto=numeric(0), toto=numeric(0), toto=numeric(0), toto=numeric(0), toto=numeric(0), toto=numeric(0), toto=numeric(0)) 
     for (k in 1:length(i1)) {
     
-    data1 <- subset(dataall,an1x==i1[k])  # <-  année 1
+    data1 <- subset(dataall,an1x==i1[k])  # <-  annie 1
     n1=nrow(data1)
-    data1.x=t(matrix(c(data1$K,data1$L,data1$M),nrow=n1,ncol=3))
+    data1.x=t(matrix(c(data1$K,data1$L,data1$EMV),nrow=n1,ncol=3))
     data1.y=t(matrix(c(data1$Y),nrow=n1,ncol=1))
     data1.id=t(matrix(c(data1$ident),nrow=n1,ncol=1))
     
-    data2 <- subset(dataall,an1x==i2[k])  # <-  année 2
+    data2 <- subset(dataall,an1x==i2[k])  # <-  annie 2
     n2=nrow(data2)
-    data2.x=t(matrix(c(data2$K,data2$L,data2$M),nrow=n2,ncol=3))
+    data2.x=t(matrix(c(data2$K,data2$L,data2$EMV),nrow=n2,ncol=3))
     data2.y=t(matrix(c(data2$Y),nrow=n2,ncol=1))
     data2.id=t(matrix(c(data2$ident),nrow=n2,ncol=1))
 
@@ -448,7 +706,7 @@ table.malm.ww <-data.frame(toto=numeric(0), toto=numeric(0), toto=numeric(0), to
                                 ORIENTATION=2)
     
     malm.all <-malmquist(LIST=malm.com)
-    # Decomposition façon Fare et al...
+    # Decomposition fagon Fare et al...
     spam <-cbind(i1[k],i2[k], mean(malm.all$malm,na.rm = TRUE), 
                  mean(malm.all$pure.eff,na.rm = TRUE),  
                  mean(malm.all$scale,na.rm = TRUE), 
@@ -462,7 +720,7 @@ table.malm.ww <-data.frame(toto=numeric(0), toto=numeric(0), toto=numeric(0), to
 <<echo =FALSE, results = tex>>=
 # mise en forme du tableau
 names(table.malm.ww) <- c("An1", "An2", "Malm", "Pure Eff", "Scale" , "Pure Tech" , "ScaleTech")
-foo2 <- xtable(table.malm.ww, label ="malmquistWW", caption = "Indices de malmquist moyens décomposés suivant SW(1998) et WW (1999)")
+foo2 <- xtable(table.malm.ww, label ="malmquistWW", caption = "Indices de malmquist moyens dicomposis suivant SW(1998) et WW (1999)")
 digits(foo2)[c(2,3)] <- 0
 print(foo2)
 @
@@ -471,13 +729,10 @@ print(foo2)
 \section{FIPS \& BIPS}
 
 <<echo=FALSE, results=hide>>=
-#  Fichier non cylindré excluant les atypiques (25/02/2011) , suffixe "Comp" partout..
-dataall <- subset(dataall,atyp==0)
-dim(dataall)
+#  Fichier non cylindre excluant les atypiques (25/02/2011) 
 
-## Scores de chaque année classique     
+## Scores de chaque annee classique     
 
-nball =nrow(dataall)
 x=seq(1996, 2006, by=1)  
 nbtemp=length(x)
 
@@ -486,11 +741,11 @@ labels <- names(dataall[,1:3])
 score.sortie.year <- data.frame(toto=numeric(0), toto=numeric(0), toto=numeric(0), toto=numeric(0)) 
     
 for (i in 1:length(x)) {
-    dataref <- subset(dataall,an1x==x[i])  # <- frontière année courante
+    dataref <- subset(dataall,an1x==x[i] & atyp==0)  # <- frontihre annie courante
     nref=nrow(dataref)
     xref=matrix(c(dataref$K,dataref$L,dataref$EMV),nrow=nref,ncol=3)
     yref=matrix(c(dataref$Y),nrow=nref,ncol=1)
-    dataobs <- subset(dataall,an1x==x[i])   #<- firmes de l'année courante 
+    dataobs <- subset(dataall,an1x==x[i]& atyp==0)   #<- firmes de l'annie courante 
     nobs=nrow(dataobs)
     xobs=matrix(c(dataobs$K,dataobs$L,dataobs$EMV),nrow=nobs,ncol=3)
     yobs=matrix(c(dataobs$Y),nrow=nobs,ncol=1)
@@ -498,38 +753,35 @@ for (i in 1:length(x)) {
     score.farell <- Benchmarking::dea(X=xobs, Y=yobs, RTS="vrs", ORIENTATION="out")
     score.year.year <-1/score.farell$eff
     foo <- cbind(dataref[,1:3], score.year.year)
-    score.sortie.year <- rbind(score.sortie.year, foo)
+    score.sortie.year <- rbind(score.sortie.year, foo) # Rbind parce que pas le même nombre de firmes...
  }
 names(score.sortie.year) <- c(labels, "ScoresYearBenComp")
 @
 
 <<echo=FALSE, results=hide>>=
 
-# Firmes pour lesquelles l'efficacité est calculée ...
-#FIRMES EN 2006
+# Firmes pour lesquelles l'efficaciti est calculie ...
 
-#dataobs <- subset(dataall,an1x==2006)   #<- firmes de 2006 
-
-#Firmes tirees Aleatoirement
+#Difinition des Firmes tirees Aleatoirement (Ici sur l'ensemble des obs, hors atypiques, ttes annies)
 
 set.seed(45678)
 nbsample <- 200
-ii <- sample(seq(1:nball),replace=FALSE)
-dataobs <- dataall[ii[1:nbsample],]
+ii <- sample(seq(1:nball.trim),replace=FALSE)
+dataobs <- dataall.trim[ii[1:nbsample],]
 
 nobs=nrow(dataobs)
 xobs=matrix(c(dataobs$K,dataobs$L,dataobs$EMV),nrow=nobs,ncol=3)
 yobs=matrix(c(dataobs$Y),nrow=nobs,ncol=1)
 
 #-------------------------------------------------------------
-## Partie III :  FIPS Scores des firmes 2006 sur frontière FIPS (1996+ 1997+ ...... + 2006 )
+## Partie III :  FIPS Scores des firmes 2006 sur frontihre FIPS (1996+ 1997+ ...... + 2006 )
 score.sortie = dataobs[, 1:3]
 labels <-names(score.sortie)
 attach(dataall)
 x=seq(1996, 2006, by=1)  
-dataall$an1x<-as.numeric(as.character(dataall$an1x))
+#dataall$an1x<-as.numeric(as.character(dataall$an1x))
 for (i in 1:length(x)) {
-    dataref <- subset(dataall, an1x <= x[i])  # <- frontière  Incrémentale 
+    dataref <- subset(dataall, an1x <= x[i] & atyp==0)  # <- frontihre  Incrimentale 
     nref=nrow(dataref)
     xref=matrix(c(dataref$K,dataref$L,dataref$EMV),nrow=nref,ncol=3)
     yref=matrix(c(dataref$Y),nrow=nref,ncol=1)
@@ -544,10 +796,11 @@ names(score.sortie) <- c(labels, "Fips1996", "Fips1997", "Fips1998", "Fips1999",
 score.sortie.fips <-score.sortie
 @
 
+
 <<echo=FALSE, results=hide>>=
 
 #-------------------------------------------------------------
-## Partie III :  Scores des firmes 2006 sur frontière DECREMENTALE 2006; 2005-2006; 2004+2005+2006, .....
+## Partie III :  Scores des firmes 2006 sur frontihre DECREMENTALE 2006; 2005-2006; 2004+2005+2006, .....
 
 score.sortie = dataobs[, 1:3]
 labels <-names(score.sortie)
@@ -557,7 +810,7 @@ nbtemp=length(x)
 
     
 for (i in 1:length(x)) {
-    dataref <- subset(dataall,an1x>=x[i])  # <- frontière  Decrémentale 
+    dataref <- subset(dataall,an1x>=x[i] & atyp==0)  # <- frontihre  Decrimentale 
     nref=nrow(dataref)
     xref=matrix(c(dataref$K,dataref$L,dataref$EMV),nrow=nref,ncol=3)
     yref=matrix(c(dataref$Y),nrow=nref,ncol=1)
@@ -572,10 +825,10 @@ score.sortie.bips <-score.sortie
 
 @
 
-On a \textbf{\Sexpr{nrow(dataall)}} observations (toutes années confondues).
+On a \textbf{\Sexpr{nrow(dataall)}} observations (toutes annees confondues).
 
 % ------------------ FIPS-----------------------
-\subsection{Résultats sur  FIPS} 
+\subsection{Resultats sur  FIPS} 
 
 <<fig=TRUE,echo=FALSE>>=
 boxplot(score.sortie.fips$Fips2006,score.sortie.fips$Fips2005,score.sortie.fips$Fips2004,score.sortie.fips$Fips2003, score.sortie.fips$Fips2002,score.sortie.fips$Fips2001,score.sortie.fips$Fips2000,score.sortie.fips$Fips1999,  score.sortie.fips$Fips1998,score.sortie.fips$Fips1997,score.sortie.fips$Fips1996, 
@@ -588,6 +841,8 @@ boxplot(score.sortie.fips$Fips2006,score.sortie.fips$Fips2005,score.sortie.fips$
     )          
                   
 @
+
+\subsection{Resultats sur  BIPS} 
 
 <<fig=TRUE,echo=FALSE>>=
 boxplot(score.sortie.bips$Bips2006,score.sortie.bips$Bips2005,score.sortie.bips$Bips2004,score.sortie.bips$Bips2003,score.sortie.bips$Bips2002,score.sortie.bips$Bips2001,score.sortie.bips$Bips2000,score.sortie.bips$Bips1999, score.sortie.bips$Bips1998,score.sortie.bips$Bips1997,score.sortie.bips$Bips1996, 
@@ -604,44 +859,107 @@ boxplot(score.sortie.bips$Bips2006,score.sortie.bips$Bips2005,score.sortie.bips$
 
 \section{Test CRS vs VRS (Simar \& Wilson, 2002) }
 <<echo=FALSE>>=
-## Paramètres pour les tests
-NbootTest <- 99
+## Paramhtres pour les tests
+NbootTest <- 399
 AlphaTest <- 0.05
-@
 
-Représentation des frontières FDH et DEA en VRS \& CRS sur un input agrégé ($Xvol$) et en zoomant:
+data.test <- subset(dataall,atyp==0)  # Toutes les annies
+data.test.out <- subset(dataall, atyp==1)   #Atypiques
+nref.test=nrow(data.test)
+xref=matrix(c(data.test$Xvol),nrow=nref.test,ncol=1)
+yref=matrix(c(data.test$Y),nrow=nref.test,ncol=1)
+
+# Bornes
+bornex <- round(max(xref), d=0)
+borney <- round(max(yref), d=0)
+bornex50 <- round(quantile(xref,probs=c(0.50))/100, d=0)*100
+borney50 <- round(quantile(yref,probs=c(0.50))/100, d=0)*100
+bornex75 <- round(quantile(xref,probs=c(0.75))/100, d=0)*100
+borney75 <- round(quantile(yref,probs=c(0.75))/100, d=0)*100
+bornex90 <- round(quantile(xref,probs=c(0.90))/100, d=0)*100
+bornex90 <- round(quantile(yref,probs=c(0.90))/100, d=0)*100
+
+@
+\subsection{Test toutes annies confondues}
+Representation des frontieres FDH et DEA en VRS \& CRS sur un input agrege ($Xvol$), sans les atypiques:
 
 <<fig=TRUE,echo=false, results=verbatim>>=
 library(Benchmarking)
-## Chargement des fonctions de baduBenko
-source("FunctionsBadubenko.R")
-
-
 Benchmarking::dea.plot.frontier(xref, yref,RTS="vrs" , xlab="Xvol", lwd=1, 
-    xlim=c(0,bornex75),ylim=c(0,borney75),
-    ylab="Y",  main=paste(" DEA frontiers in 2006 (Echantillon complet", nref, "points)"),
-    sub=paste(nrow(dataref.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+    ylab="Y",  main=paste(" Frontiers, echantillon hors atypiques (", nref.test, "points)"),
+    sub=paste(nrow(data.test.out)," outliers (red), Median and P75 quartiles in grey"))
 
-Benchmarking::dea.plot.frontier(xref, yref,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=1)
-Benchmarking::dea.plot.frontier(xref, yref,RTS="fdh", lty="dotted",add= TRUE,col="green")
+Benchmarking::dea.plot.frontier(xref, yref,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=2)
+Benchmarking::dea.plot.frontier(xref, yref,RTS="fdh",lwd=2, add= TRUE,col="green3")
 
-points(dataref.out$Xvol, dataref.out$Y, col="red" )
+points(data.test.out$Xvol, data.test.out$Y, col="red" )
 
-legend("topleft",legend=c("VRS","CRS", "FDH", "Outliers"),lty=2:4,col=c("black", "blue","green","red"))
-rug(xref2, col = "grey")
-abline(v = medX, col = "grey", lty = "dotted", lwd=2) 
-abline(h = medY, col = "grey", lty = "dotted", lwd=2)
-abline(v = p75X, col = "grey", lty = "dotted", lwd=2) 
-abline(h = p75Y, col = "grey", lty = "dotted", lwd=2)
+legend("bottomright",legend=c("VRS","CRS", "FDH", "Outliers"), lwd=2,
+       col=c("black", "blue","green3","red"))
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
+
 @
 
-On teste sur l'échantillon complet hors atypiques (\Sexpr{nref2} observations) pour 2006. Le test est effectué pour $\alpha$ =\Sexpr{AlphaTest}  et \Sexpr{NbootTest} bootstraps sur les 3 inputs, en supprimant les atypiques ??  
+On teste sur l'echantillon hors atypiques, \textbf{toutes annees confondues} (\Sexpr{nref.test} observations). Le test est effectue pour $\alpha$ =\Sexpr{AlphaTest}  et \Sexpr{NbootTest} bootstraps \textbf{sur les 3 inputs}.   
 
 <<echo=false, results=verbatim>>=
 detach(package:Benchmarking)
-xref.3d = t(matrix(c(dataref$KV, dataref$EMV, dataref$LV),nrow = nref,ncol = 3))
+## Chargement des fonctions de baduBenko
+source("FunctionsBadubenko.R")
+
+xref.3d = t(matrix(c(data.test$KV, data.test$EMV, data.test$LV),nrow = nref.test,ncol = 3))
 rts.test(x = xref.3d, y = yref, alpha = AlphaTest, orient = 2, B = NbootTest)
 
 #rts.test(x = xref, y = yref, alpha = AlphaTest, orient = 2, B = NbootTest)
 @
+
+\subsection{Test toutes annees confondues, mediane inferieure}
+
+<<echo=FALSE>>=
+data.test <- subset(dataall,atyp==0 & Xvol < bornex50)  
+data.test.out <- subset(dataall,atyp==1 & Xvol < bornex50)     #Atypiques
+nref.test=nrow(data.test)
+xref=matrix(c(data.test$Xvol),nrow=nref.test,ncol=1)
+yref=matrix(c(data.test$Y),nrow=nref.test,ncol=1)
+
+@
+
+
+<<fig=TRUE,echo=false, results=verbatim>>=
+Benchmarking::dea.plot.frontier(xref, yref,RTS="vrs" , xlab="Xvol", lwd=1, 
+    xlim=c(0,bornex75),ylim=c(0,borney75),
+    ylab="Y",  main=paste(" DEA frontiers, petites firmes (", nref.test, "points)"),
+    sub=paste(nrow(data.test.out)," outliers (red), Zoom sur la zone [ Xvol < ",bornex75,",  Y <", borney75, "]"))
+
+Benchmarking::dea.plot.frontier(xref, yref,RTS="crs", add= TRUE, lty="dashed", col="blue", lwd=2)
+Benchmarking::dea.plot.frontier(xref, yref,RTS="fdh",lwd=2, add= TRUE,col="green3")
+
+points(data.test.out$Xvol, data.test.out$Y, col="red" )
+
+legend("topleft",legend=c("VRS","CRS", "FDH", "Outliers"), lwd=2,
+       col=c("black", "blue","green3","red"))
+
+rug(xref, col = "grey")
+abline(v = bornex50, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney50, col = "grey", lty = "dotted", lwd=2)
+abline(v = bornex75, col = "grey", lty = "dotted", lwd=2) 
+abline(h = borney75, col = "grey", lty = "dotted", lwd=2)
+@
+
+
+
+On teste maintenant sur l'echantillon \textbf{reduit a la m??diane inferieure} (hors atypiques), \textbf{toutes annees confondues} (\Sexpr{nref.test} observations). Le test est effectu?? pour $\alpha$ =\Sexpr{AlphaTest}  et \Sexpr{NbootTest} bootstraps \textbf{sur les 3 inputs}.   
+
+<<echo=false, results=verbatim>>=
+
+xref.3d = t(matrix(c(data.test$KV, data.test$EMV, data.test$LV),nrow = nref.test,ncol = 3))
+rts.test(x = xref.3d, y = yref, alpha = AlphaTest, orient = 2, B = NbootTest)
+
+@
+
+
 \end{document}
