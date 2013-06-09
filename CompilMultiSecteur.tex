@@ -1,0 +1,50 @@
+% 05/05/2013:Fichier Sweave qui cree Un rapport sur TOUS les secteurs  !!
+%     : Inspiri du Programme AnalyseMultisecteur.Rnw
+
+\documentclass[a4paper]{article}
+
+\title{Compilation sur tous les secteurs }
+\author{Christophe }
+
+
+\usepackage{Sweave, setspace,graphicx,srcltx,enumitem,harvard, subfig}
+\usepackage{rotating}
+\begin{document}
+\input{CompilMultiSecteur-concordance}
+%\SweaveOpts{concordance=TRUE}
+
+% Quelques Options de dipart pour mettre les graphiques dans un sous repertoire
+% et leur donner le nom Graph-001
+
+  
+
+% Et pour laisser l affichage des commentaires du programmes
+
+
+\maketitle
+\tableofcontents
+\newpage
+
+% <<results=hide>>=               % <--- si l'on souhaite ne pas afficher les risultats...
+% <<echo=false,results=hide>>=    % <--- si l'on ne souhaite ni code, ni risultats... 
+
+
+
+
+
+
+% ------------Debut du papier -------------
+
+\clearpage
+\subsection{DEA Scores for all sectors}
+\includegraphics{Graphics/New-002}
+\clearpage
+\subsection{M Scores for all sectors}
+\includegraphics{Graphics/New-003}
+
+\clearpage
+\subsection{alpha scores for all sectors}
+\includegraphics{Graphics/New-004}
+
+
+\end{document}
